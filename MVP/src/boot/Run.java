@@ -12,8 +12,8 @@ public class Run {
 		Model m=new Maze3dModel();
 		View v= new Maze3dView();
 		Presenter p=new Presenter(m,v);
-		m.addObserver(p);
-		v.addObserver(p);
+		m.addObservers(p);
+		v.addObservers(p);
 	}
 
 }
