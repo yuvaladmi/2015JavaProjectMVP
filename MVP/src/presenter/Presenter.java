@@ -100,8 +100,9 @@ public class Presenter implements Observer {
     @Override
     public void update(Observable o, Object arg) {
 	if (o == v) {
+	    String[] s = (String[]) arg;
 	   Command command = hCommands.get(arg);
-	   command.doCommand(arr);
+	   command.doCommand(arg);
 	} else {
 	    if (o == m) {
 

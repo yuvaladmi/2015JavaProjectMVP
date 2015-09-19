@@ -6,7 +6,9 @@ public class MyObservableCLIView extends abstractView {
     private CLI cli;
 
     @Override
-    public abstract void displayByte(byte[] arr);
+    public void displayByte(byte[] arr){
+	
+    }
 
     @Override
     public void displayString(String arr) {
@@ -16,6 +18,12 @@ public class MyObservableCLIView extends abstractView {
 
     @Override
     public void displayInt(int[][] arr) {
+	// TODO Auto-generated method stub
+	
+    }
+
+    @Override
+    public void start() {
 	// TODO Auto-generated method stub
 	
     }

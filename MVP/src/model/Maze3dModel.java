@@ -301,7 +301,7 @@ public class Maze3dModel extends abstractModel {
 	    boolean allTasksCompleted = false;
 	    while (!(allTasksCompleted = threadpool.awaitTermination(10, TimeUnit.SECONDS)))
 		;
-	    c.exit();
+//	    c.exit();
 	} catch (InterruptedException e) {
 	    e.printStackTrace();
 	}
