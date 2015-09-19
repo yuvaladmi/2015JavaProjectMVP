@@ -11,7 +11,9 @@ import java.util.HashMap;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.Stack;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import algorithms.mazeGenerators.Maze3d;
@@ -31,25 +33,16 @@ public class Maze3dModel extends abstractModel {
     // Maze3d myMaze;
     // HashMap <Maze3d, Solution<Position>> hMazeSol;
 
-
     public Maze3dModel() {
-	// TODO Auto-generated constructor stub
+	hMaze = new HashMap<String, Maze3d>();
+	hSol = new HashMap<String, Solution<Position>>();
+	sb = new StringBuilder();
+	numOfThread = 10;
+	threadpool = Executors.newFixedThreadPool(numOfThread);
     }
 
-    @Override
-    public void dirToPath(String[] arr) {
-
-	File f = null;
-	String s = arr[arr.length - 1];
-	try {
-	    f = new File(s);
-	    notifyObservers();
-	} catch (Exception e) {
-	    // TODO Auto-generated catch block
-	    // e.toString();
-	    String[] error = "Folder does not exist".split(" ");
-	    c.displayString(error);
-	}
+    public void addObservers(Observer o) {
+	addObserver(o);
     }
 
     /**
@@ -58,10 +51,10 @@ public class Maze3dModel extends abstractModel {
      */
     @Override
     public void generateMaze(String[] arr) {
-	threadpool.execute(new Runnable() {
+	threadpool.submit(new Callable<Maze3d>() {
 
 	    @Override
-	    public void run() {
+	    public Maze3d call() throws Exception {
 		sb = new StringBuilder();
 		int i = 1;
 		if (arr[i].equals("3d") || arr[i].equals("3D")) {
@@ -82,9 +75,11 @@ public class Maze3dModel extends abstractModel {
 		MyMaze3dGenerator mg = new MyMaze3dGenerator(x, y, z);
 		Maze3d m = mg.generate(x, y, z);
 		hMaze.put(name, m);
-		String[] messege = ("maze " + name + " is ready").split(" ");
-		c.displayString(messege);
+		String[] messege = ("maze is ready:" + name).split(":");
+		// notifyObservers(messege);
+		return m;
 	    }
+
 	});
     }
 
@@ -92,21 +87,16 @@ public class Maze3dModel extends abstractModel {
      * This method gets a Maze name and sends the Controller this maze.
      */
     @Override
-    public void sendGame(String[] arr) {
-	sb = new StringBuilder();
-	for (int i = 1; i < arr.length; i++) {
-	    sb.append(arr[i]);
-	}
-	String name = sb.toString();
+    public byte[] sendGame(String arr) {
 	byte[] byteArr;
 	try {
-	    Maze3d temp = hMaze.get(name);
+	    Maze3d temp = hMaze.get(arr);
 	    byteArr = temp.toByteArray();
-	    c.displayByte(byteArr);
+	    return byteArr;
 	} catch (IOException e) {
-	    // TODO Auto-generated catch block
-	    c.displayString(("Error uccord, please try again").split(" "));
+	    // notifyObservers(("Error uccord, please try again").split(" "));
 	}
+	return null;
     }
 
     /**
@@ -130,11 +120,9 @@ public class Maze3dModel extends abstractModel {
 	switch (crossBy) {
 	case 'x':
 	    myMaze = maze.getCrossSectionByX(index);
-
 	    break;
 	case 'X':
 	    myMaze = maze.getCrossSectionByX(index);
-
 	    break;
 	case 'y':
 	    myMaze = maze.getCrossSectionByY(index);
@@ -148,12 +136,11 @@ public class Maze3dModel extends abstractModel {
 	case 'Z':
 	    myMaze = maze.getCrossSectionByZ(index);
 	    break;
-
 	default:
-	    System.out.println("undefined letter ");
+	    notifyObservers("Error, pkease try again");
 	    break;
 	}
-	c.displayInt(myMaze);
+	notifyObservers(myMaze);
 
     }
 
@@ -170,13 +157,11 @@ public class Maze3dModel extends abstractModel {
 	    OutputStream out = new MyCompressorOutputStream(new FileOutputStream(fileName));
 	    out.write(m.toByteArray());
 	    out.close();
-	    c.displayString("The maze is saved".split(" "));
+	    notifyObservers(("save:" + name).split(":"));
 	} catch (FileNotFoundException e) {
-	    // TODO Auto-generated catch block
-	    e.printStackTrace();
+	    notifyObservers("Error - the file was not found");
 	} catch (IOException e) {
-	    // TODO Auto-generated catch block
-	    e.printStackTrace();
+	    notifyObservers("Error - IOException");
 	}
     }
 
@@ -199,13 +184,11 @@ public class Maze3dModel extends abstractModel {
 	    }
 	    Maze3d maze = new Maze3d(b);
 	    hMaze.put(name, maze);
-	    c.displayString("The maze is loaded".split(" "));
+	    notifyObservers(("load:" + name).split(":"));
 	} catch (FileNotFoundException e) {
-	    // TODO Auto-generated catch block
-	    e.printStackTrace();
+	    notifyObservers("Error - the file was not found");
 	} catch (IOException e) {
-	    // TODO Auto-generated catch block
-	    e.printStackTrace();
+	    notifyObservers("Error - IOException");
 	}
     }
 
@@ -223,53 +206,58 @@ public class Maze3dModel extends abstractModel {
 	String name = sb.toString();
 
 	if ((hSol.get(name)) != null) {
-	    c.displayString(("solution for " + name + " is ready").split(" "));
+	    notifyObservers(("solution:" + name).split(":"));
 	}
-	threadpool.execute(new Runnable() {
+	notifyObservers(threadpool.submit(new Callable<Solution<Position>>() {
+	    
 	    @Override
-	    public void run() {
+	    public Solution<Position> call() throws Exception {
 		Maze3d m = hMaze.get(name);
 		SearchableMaze sMaze = new SearchableMaze(m);
 		CommonSearcher<Position> cs;
+		Solution<Position> s = new Solution<Position>();
 		switch (nameAlg) {
 		case "Astar":
 		    cs = new AStar<Position>(new MazeManhattenDistance());
-		    hSol.put(name, cs.search(sMaze));
+		    s = cs.search(sMaze);
+		    hSol.put(name, s);
 		    break;
 		case "A*":
 		    cs = new AStar<Position>(new MazeManhattenDistance());
-		    hSol.put(name, cs.search(sMaze));
+		    s = cs.search(sMaze);
+		    hSol.put(name, s);
 		    break;
 		case "BFS":
 		    cs = new BFS<Position>();
-		    hSol.put(name, cs.search(sMaze));
+		    s = cs.search(sMaze);
+		    hSol.put(name, s);
 		    break;
 		default:
-		    c.displayString(("The algorithm was not found").split(" "));
+		    notifyObservers("The algorithm was not found");
 		    break;
 		}
 
-		c.displayString(("solution for " + name + " is ready").split(" "));
+//		notifyObservers(("solution:" + name).split(":"));
+		return s;
 	    }
-	});
+	}));
     }
 
     /**
      * This method gets a name of a maze and sends the Controller its solution
      */
     @Override
-    public void bringSolution(String[] arr) {
-	Solution<Position> s = hSol.get(arr[arr.length - 1]);
+    public String bringSolution(String arr) {
+	Solution<Position> s = hSol.get(arr);
 	if (s != null) {
 	    Stack<Position> sol = s.getSolution();
 	    sb = new StringBuilder();
 	    while (!sol.isEmpty()) {
 		sb.append(sol.pop());
 	    }
-	    c.displayString(sb.toString().split(" "));
-	    return;
+	    return sb.toString();
 	}
-	c.displayString(("Solution do not exist for " + arr[arr.length - 1] + " maze.").split(" "));
+	return "Solution do not exist for " + arr + " maze.";
     }
 
     /**
@@ -280,9 +268,9 @@ public class Maze3dModel extends abstractModel {
 	Maze3d temp = hMaze.get(arr[arr.length - 1]);
 	try {
 	    int size = (temp.toByteArray()).length;
-	    c.displayString(("Maze " + arr[arr.length - 1] + " size is:" + size).split(" "));
+	    notifyObservers("Maze " + arr[arr.length - 1] + " size is:" + size);
 	} catch (IOException e) {
-	    c.displayString(("Error, please try again...").split(" "));
+	    notifyObservers("Error, please try again");
 	}
     }
 
@@ -294,9 +282,9 @@ public class Maze3dModel extends abstractModel {
 	File f = new File(arr[arr.length - 1]);
 	if (f.exists()) {
 	    long size = f.length();
-	    c.displayString(("File " + arr[arr.length - 1] + " size is:" + size).split(" "));
+	    notifyObservers("File " + arr[arr.length - 1] + " size is:" + size);
 	} else {
-	    c.displayString(("Error, please try again...").split(" "));
+	    notifyObservers("Error, please try again");
 	}
     }
 
@@ -317,6 +305,12 @@ public class Maze3dModel extends abstractModel {
 	} catch (InterruptedException e) {
 	    e.printStackTrace();
 	}
+
+    }
+
+    @Override
+    public void dirToPath(String[] arr) {
+	// TODO Auto-generated method stub
 
     }
 
